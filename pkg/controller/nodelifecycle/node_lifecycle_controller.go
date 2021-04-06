@@ -719,13 +719,12 @@ func (nc *Controller) doEvictionPass() {
 			} else if err != nil {
 				klog.Warningf("Failed to get Node %v from the nodeLister: %v", value.Value, err)
 			}
-			nodeUID, _ := value.UID.(string)
 			pods, err := nc.getPodsAssignedToNode(value.Value)
 			if err != nil {
 				utilruntime.HandleError(fmt.Errorf("unable to list pods from node %q: %v", value.Value, err))
 				return false, 0
 			}
-			remaining, err := nodeutil.DeletePods(nc.kubeClient, pods, nc.recorder, value.Value, nodeUID, nc.daemonSetStore)
+			remaining, err := nodeutil.DeletePods(nc.kubeClient, pods, nc.recorder, value.Value, nc.daemonSetStore)
 			if err != nil {
 				// We are not setting eviction status here.
 				// New pods will be handled by zonePodEvictor retry
@@ -768,7 +767,7 @@ func (nc *Controller) monitorNodeHealth() error {
 
 	for i := range added {
 		klog.V(1).Infof("Controller observed a new Node: %#v", added[i].Name)
-		nodeutil.RecordNodeEvent(nc.recorder, added[i].Name, string(added[i].UID), v1.EventTypeNormal, "RegisteredNode", fmt.Sprintf("Registered Node %v in Controller", added[i].Name))
+		nodeutil.RecordNodeEvent(nc.recorder, added[i].Name, v1.EventTypeNormal, "RegisteredNode", fmt.Sprintf("Registered Node %v in Controller", added[i].Name))
 		nc.knownNodeSet[added[i].Name] = added[i]
 		nc.addPodEvictorForNewZone(added[i])
 		if nc.runTaintManager {
@@ -780,7 +779,7 @@ func (nc *Controller) monitorNodeHealth() error {
 
 	for i := range deleted {
 		klog.V(1).Infof("Controller observed a Node deletion: %v", deleted[i].Name)
-		nodeutil.RecordNodeEvent(nc.recorder, deleted[i].Name, string(deleted[i].UID), v1.EventTypeNormal, "RemovingNode", fmt.Sprintf("Removing Node %v from Controller", deleted[i].Name))
+		nodeutil.RecordNodeEvent(nc.recorder, deleted[i].Name, v1.EventTypeNormal, "RemovingNode", fmt.Sprintf("Removing Node %v from Controller", deleted[i].Name))
 		delete(nc.knownNodeSet, deleted[i].Name)
 	}
 
@@ -1429,7 +1428,7 @@ func (nc *Controller) evictPods(node *v1.Node, pods []*v1.Pod) (bool, error) {
 	if ok && status == evicted {
 		// Node eviction already happened for this node.
 		// Handling immediate pod deletion.
-		_, err := nodeutil.DeletePods(nc.kubeClient, pods, nc.recorder, node.Name, string(node.UID), nc.daemonSetStore)
+		_, err := nodeutil.DeletePods(nc.kubeClient, pods, nc.recorder, node.Name, nc.daemonSetStore)
 		if err != nil {
 			return false, fmt.Errorf("unable to delete pods from node %q: %v", node.Name, err)
 		}

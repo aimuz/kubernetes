@@ -43,12 +43,12 @@ import (
 // DeletePods will delete all pods from master running on given node,
 // and return true if any pods were deleted, or were found pending
 // deletion.
-func DeletePods(kubeClient clientset.Interface, pods []*v1.Pod, recorder record.EventRecorder, nodeName, nodeUID string, daemonStore appsv1listers.DaemonSetLister) (bool, error) {
+func DeletePods(kubeClient clientset.Interface, pods []*v1.Pod, recorder record.EventRecorder, nodeName string, daemonStore appsv1listers.DaemonSetLister) (bool, error) {
 	remaining := false
 	var updateErrList []error
 
 	if len(pods) > 0 {
-		RecordNodeEvent(recorder, nodeName, nodeUID, v1.EventTypeNormal, "DeletingAllPods", fmt.Sprintf("Deleting all Pods from Node %v.", nodeName))
+		RecordNodeEvent(recorder, nodeName, v1.EventTypeNormal, "DeletingAllPods", fmt.Sprintf("Deleting all Pods from Node %v.", nodeName))
 	}
 
 	for i := range pods {
@@ -161,12 +161,12 @@ func MarkPodsNotReady(kubeClient clientset.Interface, recorder record.EventRecor
 }
 
 // RecordNodeEvent records a event related to a node.
-func RecordNodeEvent(recorder record.EventRecorder, nodeName, nodeUID, eventtype, reason, event string) {
+func RecordNodeEvent(recorder record.EventRecorder, nodeName, eventtype, reason, event string) {
 	ref := &v1.ObjectReference{
 		APIVersion: "v1",
 		Kind:       "Node",
 		Name:       nodeName,
-		UID:        types.UID(nodeUID),
+		UID:        types.UID(nodeName),
 		Namespace:  "",
 	}
 	klog.V(2).Infof("Recording %s event message for node %s", event, nodeName)
@@ -179,8 +179,9 @@ func RecordNodeStatusChange(recorder record.EventRecorder, node *v1.Node, newSta
 		APIVersion: "v1",
 		Kind:       "Node",
 		Name:       node.Name,
-		UID:        node.UID,
-		Namespace:  "",
+		// Use node.name as the event uid to solve this issue #100236
+		UID:       types.UID(node.Name),
+		Namespace: "",
 	}
 	klog.V(2).Infof("Recording status change %s event message for node %s", newStatus, node.Name)
 	// TODO: This requires a transaction, either both node status is updated

@@ -93,9 +93,8 @@ func (nc *nodeLifecycleController) doEviction(fakeNodeHandler *testutil.FakeNode
 	zones := testutil.GetZones(fakeNodeHandler)
 	for _, zone := range zones {
 		nc.zonePodEvictor[zone].Try(func(value scheduler.TimedValue) (bool, time.Duration) {
-			uid, _ := value.UID.(string)
 			pods, _ := nc.getPodsAssignedToNode(value.Value)
-			nodeutil.DeletePods(fakeNodeHandler, pods, nc.recorder, value.Value, uid, nc.daemonSetStore)
+			nodeutil.DeletePods(fakeNodeHandler, pods, nc.recorder, value.Value, nc.daemonSetStore)
 			_ = nc.nodeEvictionMap.setStatus(value.Value, evicted)
 			return true, 0
 		})
@@ -720,13 +719,12 @@ func TestMonitorNodeHealthEvictPods(t *testing.T) {
 		for _, zone := range zones {
 			if _, ok := nodeController.zonePodEvictor[zone]; ok {
 				nodeController.zonePodEvictor[zone].Try(func(value scheduler.TimedValue) (bool, time.Duration) {
-					nodeUID, _ := value.UID.(string)
 					pods, err := nodeController.getPodsAssignedToNode(value.Value)
 					if err != nil {
 						t.Errorf("unexpected error: %v", err)
 					}
 					t.Logf("listed pods %d for node %v", len(pods), value.Value)
-					nodeutil.DeletePods(item.fakeNodeHandler, pods, nodeController.recorder, value.Value, nodeUID, nodeController.daemonSetInformer.Lister())
+					nodeutil.DeletePods(item.fakeNodeHandler, pods, nodeController.recorder, value.Value, nodeController.daemonSetInformer.Lister())
 					return true, 0
 				})
 			} else {
@@ -880,12 +878,11 @@ func TestPodStatusChange(t *testing.T) {
 		zones := testutil.GetZones(item.fakeNodeHandler)
 		for _, zone := range zones {
 			nodeController.zonePodEvictor[zone].Try(func(value scheduler.TimedValue) (bool, time.Duration) {
-				nodeUID, _ := value.UID.(string)
 				pods, err := nodeController.getPodsAssignedToNode(value.Value)
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
-				nodeutil.DeletePods(item.fakeNodeHandler, pods, nodeController.recorder, value.Value, nodeUID, nodeController.daemonSetStore)
+				nodeutil.DeletePods(item.fakeNodeHandler, pods, nodeController.recorder, value.Value, nodeController.daemonSetStore)
 				return true, 0
 			})
 		}
@@ -3436,7 +3433,7 @@ func TestNodeEventGeneration(t *testing.T) {
 	for _, event := range fakeRecorder.Events {
 		involvedObject := event.InvolvedObject
 		actualUID := string(involvedObject.UID)
-		if actualUID != "1234567890" {
+		if actualUID != "node0" {
 			t.Fatalf("unexpected event uid: %v", actualUID)
 		}
 	}
